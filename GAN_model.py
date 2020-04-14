@@ -248,18 +248,22 @@ def random_word_generator(size):
     res = []
     for i in randoms:
         res.append(EMBEDDINGS[i])
-    return np.array(res)
+    return Variable(torch.from_numpy(np.array(res))).float()
+    # return 
 
 def rec_loss(output, embeddings, margin = 1.0):
+    # print(type(output))
+
     squared_diff = (output ** 2 - embeddings ** 2)
     random_words = random_word_generator(output.shape[0])
-    per_word_distance = np.linalg.norm((embeddings - output)) ** 2
-    per_random_word_distance = np.linalg.norm((random_words - output)) ** 2
+
+    per_word_distance = torch.norm((embeddings - output))**2
+    per_random_word_distance = torch.norm((random_words - output))**2
 
     loss = max(0.0, margin + per_word_distance - per_random_word_distance)
-    print(loss)
-    print(random_words.shape)
-    exit()
+    # print(loss)
+    # print(random_words.shape)
+    # exit()
     # per_word_distance = torch.norm(squared_diff, 2)
 
 
