@@ -1,1 +1,7 @@
 *.txt
+*.jpeg
+*.png
+*.pdf
+*.jpg
+GeneratorModel_*
+DiscriminatorModel_*

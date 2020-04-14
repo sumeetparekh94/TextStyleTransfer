@@ -64,7 +64,7 @@ def read_yelp_dataset():
 
 def read_embeddings():
     # Using ready to use embeddings.
-    EMBEDDING_FILE = 'embeddings-130441-200-2.txt'
+    EMBEDDING_FILE = 'embeddings.txt'
 
     words = []
     idx = 0
@@ -158,8 +158,7 @@ def discriminator_training(optimizer=None):
         if batch_index == BATCH_ITERATION_LIMIT:
             break
 
-<<<<<<< HEAD
-    for batch_index, batch  in enumerate(   ):
+    for batch_index, batch  in enumerate(neg_batch_iterator):
         optimizer.zero_grad()
         fake_samples = batch
 
@@ -184,6 +183,25 @@ def discriminator_training(optimizer=None):
     # step
     optimizer.step()
     return ERROR_REAL + ERROR_FAKE
+
+def random_word_generator(size):
+    randoms = np.random.randint(0,high = EMBEDDING_SIZE, size = size)
+    res = []
+    for i in randoms:
+        res.append(EMBEDDINGS[i])
+    return np.array(res)
+
+def rec_loss(output, embeddings, margin = 1.0):
+    squared_diff = (output ** 2 - embeddings ** 2)
+    random_words = random_word_generator(output.shape[0])
+    per_word_distance = np.linalg.norm((embeddings - output)) ** 2
+    per_random_word_distance = np.linalg.norm((random_words - output)) ** 2
+
+    loss = max(0.0, margin + per_word_distance - per_random_word_distance)
+    print(loss)
+    print(random_words.shape)
+    exit()
+    # per_word_distance = torch.norm(squared_diff, 2)
 
 
 def generator_training(optimizer=None):
@@ -211,6 +229,7 @@ def generator_training(optimizer=None):
         # Calculate the loss using mseLoss.
         loss_mse = nn.MSELoss()
         reconstruction_error = loss_mse(output, embeddings)
+        rec_loss(output, embeddings)
         optimizer.zero_grad()
         reconstruction_error.backward()
         optimizer.step()
@@ -323,13 +342,13 @@ if __name__ == '__main__':
     g_optimizer = torch.optim.Adam(G_model.parameters(), lr=learning_rate)
     d_optimizer = torch.optim.Adam(D_model.parameters(), lr=learning_rate)
 
-    for step_epoch in range(0, num_epochs):
+    for step_epoch in range(0, 2):
         print("Starting Step:" + str(step_epoch))
 
         d_error = discriminator_training(optimizer=d_optimizer)
         g_error = generator_training(optimizer=g_optimizer)
 
-        if step_epoch % VISIBLE_OUTPUT_RATE == 0:
+        if step_epoch % 1 == 0:
             print("Step: " + str(step_epoch))
             print("Discriminator Error:" + str(d_error))
             print("Generator Error:" + str(g_error))
