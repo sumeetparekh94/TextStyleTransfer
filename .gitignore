@@ -5,3 +5,4 @@
 *.jpg
 GeneratorModel_*
 DiscriminatorModel_*
+__pycache__/
