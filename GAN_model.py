@@ -4,7 +4,7 @@
 """
 @author: bhavsar.y, shah.h
 """
-
+from tqdm import tqdm
 import torch
 import torch.utils.data
 import math
@@ -14,7 +14,8 @@ from torch.autograd import Variable
 import numpy as np
 import re
 import string
-
+from nltk.translate.bleu_score import sentence_bleu
+from nltk.translate.bleu_score import SmoothingFunction
 from generator import GenerativeModel
 from discriminator import DiscriminaterModel
 
@@ -29,7 +30,7 @@ VOCAB = list()
 CORPUS = list()
 EMBEDDING_SIZE = -1
 learning_rate = 0.0001
-num_epochs = 500
+num_epochs = 50
 BATCH_ITERATION_LIMIT = 150
 
 D_model = None
@@ -61,10 +62,9 @@ def read_yelp_dataset():
 
     return pos, neg
 
-
 def read_embeddings():
     # Using ready to use embeddings.
-    EMBEDDING_FILE = 'embeddings-130441-200-2.txt'
+    EMBEDDING_FILE = 'embeddings.txt'
 
     words = []
     idx = 0
@@ -122,7 +122,65 @@ def read_real_samples(sample_size=BATCH_SIZE):
         0, len(POS_SAMPLES), sample_size)]
     return real_text
 
+def loss_function_1(discriminator_output, expected_output):
+    prediction_transferred = discriminator_output
+    prediction_target = expected_output
+    #pt
+    inner_term = prediction_transferred<0.0
+    middle_term = inner_term.type(torch.FloatTensor)
+    outer_term = torch.mean(middle_term)
+    transferred_accuracy = outer_term
+    #transferred_accuracy = tf.reduce_mean(tf.cast(tf.less(prediction_transferred, 0.0), tf.float32))transferred_accuracy = tf.reduce_mean(tf.cast(tf.less(prediction_transferred, 0.0), tf.float32))
+    #pt
+    #pt
+    inner_term = prediction_target<0.0
+    middle_term = inner_term.type(torch.FloatTensor)
+    outer_term = torch.mean(middle_term)
+    target_accuracy = outer_term    
+    # target_accuracy = tf.reduce_mean(tf.cast(tf.greater_equal(prediction_target, 0.0), tf.float32))
+    #pt
 
+
+    
+    
+    #pt
+    target_loss = torch.mean(prediction_target)
+    # target_loss = tf.reduce_mean(prediction_target)
+    #pt
+    #pt
+    transferred_loss = torch.mean(prediction_transferred)
+    # transferred_loss = tf.reduce_mean(prediction_transferred)
+    #pt
+    # total loss is the sum of losses
+    total_loss = - target_loss + transferred_loss
+    # total accuracy is the avg of accuracies
+    total_accuracy = 0.5 * (transferred_accuracy + target_accuracy)
+    return total_loss, total_accuracy
+
+def rec_loss():
+        # def get_margin_loss_v2(self, true_embeddings, decoded_embeddings, random_words_embeddings, padding_mask, margin):
+    per_word_distance = tf.sqrt(tf.reduce_sum(tf.squared_difference(true_embeddings, decoded_embeddings), axis=-1))
+
+    if random_words_embeddings is not None:
+        len_random_words = tf.shape(random_words_embeddings)[2]
+
+        sq_difference_expand = tf.expand_dims(per_word_distance, 2)
+        sq_difference_expand = tf.tile(sq_difference_expand, [1, 1, len_random_words])
+
+        target_expand = tf.expand_dims(decoded_embeddings, 2)
+        target_expand = tf.tile(target_expand, [1, 1, len_random_words, 1])
+        per_random_word_distance = tf.sqrt(
+            tf.reduce_sum(tf.squared_difference(target_expand, random_words_embeddings), axis=-1))
+
+        per_word_margin_loss = tf.maximum(0.0, margin + sq_difference_expand - per_random_word_distance)
+        per_word_distance = tf.reduce_mean(per_word_margin_loss, axis=-1)
+
+    mask = tf.where(padding_mask, tf.ones_like(padding_mask, dtype=tf.float32),
+                    tf.zeros_like(padding_mask, dtype=tf.float32))
+    sum = tf.reduce_sum(per_word_distance * mask)
+    mask_sum = tf.reduce_sum(mask)
+
+    return sum / mask_sum
 def discriminator_training(optimizer=None):
 
     loss_function = nn.BCELoss()
@@ -149,7 +207,7 @@ def discriminator_training(optimizer=None):
             torch.from_numpy(real_probability_output)).float()
 
         discriminator_output = D_model(real_embeddings)
-        error_real = loss_function(discriminator_output, expected_output)
+        error_real = loss_function_1(discriminator_output, expected_output)[0]
         ERROR_REAL += error_real
         optimizer.zero_grad()
         error_real.backward()
@@ -158,8 +216,7 @@ def discriminator_training(optimizer=None):
         if batch_index == BATCH_ITERATION_LIMIT:
             break
 
-<<<<<<< HEAD
-    for batch_index, batch  in enumerate(   ):
+    for batch_index, batch  in enumerate(neg_batch_iterator):
         optimizer.zero_grad()
         fake_samples = batch
 
@@ -267,7 +324,7 @@ def nearest_word_to_embedding(embedding):
     return nearest_word
 
 
-def transform_sentences(test_samples_count=10, save_path = "output_" + MODEL_NAME + ".txt"):
+def transform_sentences(test_samples_count=10, save_path = "output_" + MODEL_NAME + ".txt", load_model = False):
     # Get some random samples from the negative sentences
     samples = read_neg_samples(sample_size=test_samples_count)
 
@@ -285,7 +342,20 @@ def transform_sentences(test_samples_count=10, save_path = "output_" + MODEL_NAM
         sample_embedding = Variable(torch.from_numpy(sample_embedding)).float()
 
         # Convert the embedding using the generator
-        converted_embedding = G_model(sample_embedding)
+        if load_model:
+            VOCAB, EMBEDDINGS, WORD2INDEX = read_embeddings()
+            EMBEDDING_SIZE = EMBEDDINGS.shape[1]
+            model = GenerativeModel(EMBEDDING_SIZE)
+            # model.load_state_dict('GeneratorModel_model_lr_0.0001_epochs_500_itr_150_batchsize_300')
+            # model.eval()
+            # model.eval()
+            # model = GenerativeModel()
+            model.load_state_dict(torch.load('GeneratorModel_model_lr_0.0001_epochs_500_itr_150_batchsize_300'))
+            # model = torch.load('GeneratorModel_model_lr_0.0001_epochs_500_itr_150_batchsize_300')
+            # model.eval()
+            converted_embedding = model(sample_embedding)
+        else:
+            converted_embedding = G_model(sample_embedding)
         # Get the nearest word to the embedding
         converted_sentence = ""
         for single_converted_embedding in converted_embedding:
@@ -298,6 +368,7 @@ def transform_sentences(test_samples_count=10, save_path = "output_" + MODEL_NAM
 
         print("Input Sentence: ", sample_sentence)
         print("Converted Sentence: ", converted_sentence)
+        bleu_metric(sample_sentence, converted_sentence)
         print("-------")
 
     with open(save_path, "w") as output_converted_sentences_file:
@@ -305,8 +376,15 @@ def transform_sentences(test_samples_count=10, save_path = "output_" + MODEL_NAM
     
     del save_file_str
 
-if __name__ == '__main__':
+def bleu_metric(reference, candidate):
+    smoothie = SmoothingFunction().method4
+    print('Cumulative 1-gram: %f' % sentence_bleu(reference, candidate, weights=(1, 0, 0, 0),smoothing_function=smoothie))
+    print('Cumulative 2-gram: %f' % sentence_bleu(reference, candidate, weights=(0.5, 0.5, 0, 0),smoothing_function=smoothie))
+    print('Cumulative 3-gram: %f' % sentence_bleu(reference, candidate, weights=(0.33, 0.33, 0.33, 0),smoothing_function=smoothie))
+    print('Cumulative 4-gram: %f' % sentence_bleu(reference, candidate, weights=(0.25, 0.25, 0.25, 0.25),smoothing_function=smoothie))
+    pass
 
+if __name__ == '__main__':
     # First read the input.
     POS_SAMPLES, NEG_SAMPLES = read_yelp_dataset()
     VOCAB, EMBEDDINGS, WORD2INDEX = read_embeddings()
@@ -314,6 +392,8 @@ if __name__ == '__main__':
     CORPUS.extend(POS_SAMPLES)
     CORPUS.extend(NEG_SAMPLES)
 
+    transform_sentences(test_samples_count=10, load_model=True)
+    exit()
     EMBEDDING_SIZE = EMBEDDINGS.shape[1]
     batches_done = 0
 
@@ -323,7 +403,7 @@ if __name__ == '__main__':
     g_optimizer = torch.optim.Adam(G_model.parameters(), lr=learning_rate)
     d_optimizer = torch.optim.Adam(D_model.parameters(), lr=learning_rate)
 
-    for step_epoch in range(0, num_epochs):
+    for step_epoch in tqdm(range(0, num_epochs)):
         print("Starting Step:" + str(step_epoch))
 
         d_error = discriminator_training(optimizer=d_optimizer)
