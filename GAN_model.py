@@ -99,12 +99,15 @@ def convert_sentences_to_embeddings(sentences):
 
     result = list()
     for single_sentence in sentences:
+        sentence_embedding = list()
         for word in single_sentence.split():
             idx = WORD2INDEX.get(
                 remove_punctuations(word), WORD2INDEX['UNK'])
-            result.append(EMBEDDINGS[idx])
-
-    return np.array(result)
+            sentence_embedding.append(EMBEDDINGS[idx])
+        print(Variable(torch.from_numpy(np.array(sentence_embedding))).float().shape)
+        exit()
+        result.append(Variable(torch.from_numpy(np.array(sentence_embedding))).float())
+    return result
 
 
 def read_random_samples(batch_size=BATCH_SIZE):
@@ -202,11 +205,13 @@ def discriminator_training(optimizer=None):
 
         # discriminator output should be for real embeddings
         real_embeddings = convert_sentences_to_embeddings(real_samples)
-        real_embeddings = Variable(torch.from_numpy(real_embeddings)).float()
+        print(len(real_embeddings))
+        real_embeddings = Variable(torch.from_numpy(np.array(real_embeddings))).float()
 
         real_probability_output = np.ones(shape=(real_embeddings.shape[0], 1))
         expected_output = Variable(
             torch.from_numpy(real_probability_output)).float()
+
         # print(D_model.get_trainable_params()[0][0])
         nn.utils.clip_grad_norm_(D_model.parameters(),0.125)
         # print(D_model.get_trainable_params()[0][0])
@@ -435,13 +440,16 @@ if __name__ == '__main__':
     # First read the input.
     POS_SAMPLES, NEG_SAMPLES = read_yelp_dataset()
     VOCAB, EMBEDDINGS, WORD2INDEX = read_embeddings()
-
+    print(len(WORD2INDEX))
+    exit()
     CORPUS.extend(POS_SAMPLES)
     CORPUS.extend(NEG_SAMPLES)
 
     # transform_sentences(test_samples_count=10, load_model=True)
     # exit()
     EMBEDDING_SIZE = EMBEDDINGS.shape[1]
+    # print(EMBEDDING_SIZE)
+    # exit()
     batches_done = 0
 
     D_model = DiscriminaterModel(EMBEDDING_SIZE)
