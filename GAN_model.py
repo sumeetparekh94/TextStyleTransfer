@@ -18,6 +18,7 @@ from nltk.translate.bleu_score import sentence_bleu
 from nltk.translate.bleu_score import SmoothingFunction
 from generator import GenerativeModel
 from discriminator import DiscriminaterModel
+# from rec_loss import rec_loss
 
 VISIBLE_OUTPUT_RATE = 10
 
@@ -230,7 +231,7 @@ def discriminator_training(optimizer=None):
             torch.from_numpy(fake_probability_output)).float()
 
         discriminator_output = D_model(fake_embeddings)
-        error_fake = loss_function(discriminator_output, expected_output)
+        error_fake = loss_function_1(discriminator_output, expected_output)[0]
         ERROR_FAKE += error_fake
         optimizer.zero_grad()
         error_fake.backward()
@@ -259,11 +260,17 @@ def rec_loss(output, embeddings, margin = 1.0):
 
     per_word_distance = torch.norm((embeddings - output))**2
     per_random_word_distance = torch.norm((random_words - output))**2
-
-    loss = max(0.0, margin + per_word_distance - per_random_word_distance)
+    # print(type(per_word_distance))
+    # print(per_word_distance)
+    # print(type(per_random_word_distance))
+    # loss = max(torch.tensor(0.0), torch.tensor(margin) + per_word_distance - per_random_word_distance)
+    loss =torch.tensor(margin) + per_word_distance - per_random_word_distance
+    # print(loss)
+    # loss.requires_grad = True
     # print(loss)
     # print(random_words.shape)
     # exit()
+    return loss
     # per_word_distance = torch.norm(squared_diff, 2)
 
 
@@ -281,18 +288,21 @@ def generator_training(optimizer=None):
 
     # Iterate over the positive domain and apply reconstruction loss.
     for batch_index, batch in enumerate(pos_batch_iterator):
-
+        # print(batch)
         # Get the embeddings and convert to Variable
         embeddings = convert_sentences_to_embeddings(batch)
+        # print(embeddings)
+        # exit()
         embeddings = Variable(torch.from_numpy(embeddings)).float()
 
         # get the generator output
         output = G_model(embeddings)
-
+# 
         # Calculate the loss using mseLoss.
         loss_mse = nn.MSELoss()
-        reconstruction_error = loss_mse(output, embeddings)
-        rec_loss(output, embeddings)
+        # rec_loss = rec_loss(EMBEDDING_SIZE, EMBEDDINGS, output.shape[0])
+        # loss_mse(output, embeddings)
+        reconstruction_error = rec_loss(output, embeddings)
         optimizer.zero_grad()
         reconstruction_error.backward()
         optimizer.step()
@@ -317,7 +327,7 @@ def generator_training(optimizer=None):
 
         # get the error function
         loss_bce = nn.BCELoss()
-        error = loss_bce(discriminator_output, expected_output)
+        error = loss_function_1(discriminator_output, expected_output)[0]
         ERROR_GENERATOR += error
         optimizer.zero_grad()
         error.backward()
