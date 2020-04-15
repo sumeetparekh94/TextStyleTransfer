@@ -98,12 +98,15 @@ def convert_sentences_to_embeddings(sentences):
 
     result = list()
     for single_sentence in sentences:
+        sentence_embedding = list()
         for word in single_sentence.split():
             idx = WORD2INDEX.get(
                 remove_punctuations(word), WORD2INDEX['UNK'])
-            result.append(EMBEDDINGS[idx])
-
-    return np.array(result)
+            sentence_embedding.append(EMBEDDINGS[idx])
+        print(Variable(torch.from_numpy(np.array(sentence_embedding))).float().shape)
+        exit()
+        result.append(Variable(torch.from_numpy(np.array(sentence_embedding))).float())
+    return result
 
 
 def read_random_samples(batch_size=BATCH_SIZE):
@@ -201,12 +204,14 @@ def discriminator_training(optimizer=None):
 
         # discriminator output should be for real embeddings
         real_embeddings = convert_sentences_to_embeddings(real_samples)
-        real_embeddings = Variable(torch.from_numpy(real_embeddings)).float()
+        print(len(real_embeddings))
+        real_embeddings = Variable(torch.from_numpy(np.array(real_embeddings))).float()
 
         real_probability_output = np.ones(shape=(real_embeddings.shape[0], 1))
         expected_output = Variable(
             torch.from_numpy(real_probability_output)).float()
-
+        print(real_embeddings.shape)
+        exit()
         discriminator_output = D_model(real_embeddings)
         error_real = loss_function_1(discriminator_output, expected_output)[0]
         ERROR_REAL += error_real
@@ -230,7 +235,7 @@ def discriminator_training(optimizer=None):
             torch.from_numpy(fake_probability_output)).float()
 
         discriminator_output = D_model(fake_embeddings)
-        error_fake = loss_function(discriminator_output, expected_output)
+        error_fake = loss_function_1(discriminator_output, expected_output)
         ERROR_FAKE += error_fake
         optimizer.zero_grad()
         error_fake.backward()
@@ -289,10 +294,10 @@ def generator_training(optimizer=None):
         # get the generator output
         output = G_model(embeddings)
 
-        # Calculate the loss using mseLoss.
+        # Calculate the loss using rec_loss.
         loss_mse = nn.MSELoss()
-        reconstruction_error = loss_mse(output, embeddings)
-        rec_loss(output, embeddings)
+        reconstruction_error = rec_loss(output, embeddings)
+        # rec_loss(output, embeddings)
         optimizer.zero_grad()
         reconstruction_error.backward()
         optimizer.step()
@@ -413,13 +418,16 @@ if __name__ == '__main__':
     # First read the input.
     POS_SAMPLES, NEG_SAMPLES = read_yelp_dataset()
     VOCAB, EMBEDDINGS, WORD2INDEX = read_embeddings()
-
+    print(len(WORD2INDEX))
+    exit()
     CORPUS.extend(POS_SAMPLES)
     CORPUS.extend(NEG_SAMPLES)
 
     # transform_sentences(test_samples_count=10, load_model=True)
     # exit()
     EMBEDDING_SIZE = EMBEDDINGS.shape[1]
+    # print(EMBEDDING_SIZE)
+    # exit()
     batches_done = 0
 
     D_model = DiscriminaterModel(EMBEDDING_SIZE)
