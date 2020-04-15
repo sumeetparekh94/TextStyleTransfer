@@ -15,7 +15,3 @@ class GenerativeModel(nn.Module):
         x = F.relu(self.fc_input(x))
         x = F.relu(self.fc_hidden1(x))
         return torch.tanh(self.fc_output(x))
-
-    def get_trainable_params(self):
-        self.trainable_params = [p for p in self.fc_input_Discriminator.parameters()]
-        return self.trainable_params

@@ -13,3 +13,7 @@ class DiscriminaterModel(nn.Module):
     def forward(self, x):
         x = F.dropout(self.fc_input_Discriminator(x), p=0.2)
         return torch.sigmoid(x)
+
+    def get_trainable_params(self):
+        self.trainable_params = [p for p in self.fc_input_Discriminator.parameters()]
+        return self.trainable_params
