@@ -17,6 +17,7 @@ import string
 from nltk.translate.bleu_score import sentence_bleu
 from nltk.translate.bleu_score import SmoothingFunction
 from generator import GenerativeModel
+from generatorRNN import Generative_model_RNN
 from discriminator import DiscriminaterModel
 # from rec_loss import rec_loss
 
@@ -31,7 +32,7 @@ VOCAB = list()
 CORPUS = list()
 EMBEDDING_SIZE = -1
 learning_rate = 0.0001
-num_epochs = 150
+num_epochs = 250
 BATCH_ITERATION_LIMIT = 150
 
 D_model = None
@@ -95,19 +96,27 @@ def remove_punctuations(str):
     return regex.sub("", str)
 
 
-def convert_sentences_to_embeddings(sentences):
+# def convert_sentences_to_embeddings(sentences):
 
+#     result = list()
+#     for single_sentence in sentences:
+#         sentence_embedding = list()
+#         for word in single_sentence.split():
+#             idx = WORD2INDEX.get(
+#                 remove_punctuations(word), WORD2INDEX['UNK'])
+#             sentence_embedding.append(EMBEDDINGS[idx])
+#         # print(Variable(torch.from_numpy(np.array(sentence_embedding))).float().shape)
+#         # exit()
+#         result.append(Variable(torch.from_numpy(np.array(sentence_embedding))).float())
+#     return result
+def convert_sentences_to_embeddings(sentences):
     result = list()
     for single_sentence in sentences:
-        sentence_embedding = list()
         for word in single_sentence.split():
             idx = WORD2INDEX.get(
                 remove_punctuations(word), WORD2INDEX['UNK'])
-            sentence_embedding.append(EMBEDDINGS[idx])
-        print(Variable(torch.from_numpy(np.array(sentence_embedding))).float().shape)
-        exit()
-        result.append(Variable(torch.from_numpy(np.array(sentence_embedding))).float())
-    return result
+            result.append(EMBEDDINGS[idx])
+    return np.array(result)
 
 
 def read_random_samples(batch_size=BATCH_SIZE):
@@ -205,7 +214,7 @@ def discriminator_training(optimizer=None):
 
         # discriminator output should be for real embeddings
         real_embeddings = convert_sentences_to_embeddings(real_samples)
-        print(len(real_embeddings))
+        # print(len(real_embeddings))
         real_embeddings = Variable(torch.from_numpy(np.array(real_embeddings))).float()
 
         real_probability_output = np.ones(shape=(real_embeddings.shape[0], 1))
@@ -263,8 +272,8 @@ def random_word_generator(size):
 
 def rec_loss(t_cap, t, margin = 1.0, k = 5):
     # print(type(output))
-    print(t.shape)
-    exit()
+    # print(t.shape)
+    # exit()
     #new
     # for i in k:
 
@@ -319,7 +328,7 @@ def generator_training(optimizer=None):
         # if discriminator_accuracy>.55:
         #     dis_loss = discriminator_loss*torch.tensor(0.00001)
         # +dis_loss
-        reconstruction_error = rec_loss(output, embeddings)
+        reconstruction_error = loss_mse(output, embeddings)
         optimizer.zero_grad()
         reconstruction_error.backward()
         optimizer.step()
@@ -440,8 +449,8 @@ if __name__ == '__main__':
     # First read the input.
     POS_SAMPLES, NEG_SAMPLES = read_yelp_dataset()
     VOCAB, EMBEDDINGS, WORD2INDEX = read_embeddings()
-    print(len(WORD2INDEX))
-    exit()
+    # print(len(WORD2INDEX))
+    # exit()
     CORPUS.extend(POS_SAMPLES)
     CORPUS.extend(NEG_SAMPLES)
 
@@ -454,6 +463,7 @@ if __name__ == '__main__':
 
     D_model = DiscriminaterModel(EMBEDDING_SIZE)
     G_model = GenerativeModel(EMBEDDING_SIZE)
+    # G_model = Generative_model_RNN(EMBEDDING_SIZE,1000,len(VOCAB),200)
 
     g_optimizer = torch.optim.Adam(G_model.parameters(), lr=learning_rate)
     d_optimizer = torch.optim.Adam(D_model.parameters(), lr=learning_rate)
