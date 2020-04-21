@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-@author: bhavsar.y, shah.h
+
 """
 from tqdm import tqdm
 import torch
